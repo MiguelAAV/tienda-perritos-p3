@@ -2,14 +2,32 @@
   "family": "tienda-perritos-backend",
   "networkMode": "awsvpc",
   "requiresCompatibilities": ["FARGATE"],
-  "cpu": "256",
-  "memory": "512",
-  "executionRoleArn": "arn:aws:iam::ACCOUNT_ID:role/LabRole",
-  "taskRoleArn": "arn:aws:iam::ACCOUNT_ID:role/LabRole",
+  "cpu": "512",
+  "memory": "1024",
+  "executionRoleArn": "arn:aws:iam::458620937306:role/LabRole",
+  "taskRoleArn": "arn:aws:iam::458620937306:role/LabRole",
   "containerDefinitions": [
     {
+      "name": "db",
+      "image": "458620937306.dkr.ecr.us-east-1.amazonaws.com/tienda-perritos-db:latest",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 3306,
+          "hostPort": 3306,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        { "name": "MYSQL_ROOT_PASSWORD", "value": "admin123" },
+        { "name": "MYSQL_DATABASE", "value": "tienda_perritos" },
+        { "name": "MYSQL_USER", "value": "alumno" },
+        { "name": "MYSQL_PASSWORD", "value": "alumno123" }
+      ]
+    },
+    {
       "name": "backend",
-      "image": "ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/tienda-perritos-backend:latest",
+      "image": "458620937306.dkr.ecr.us-east-1.amazonaws.com/tienda-perritos-backend:latest",
       "essential": true,
       "portMappings": [
         {
@@ -19,7 +37,7 @@
         }
       ],
       "environment": [
-        { "name": "DB_HOST", "value": "db" },
+        { "name": "DB_HOST", "value": "127.0.0.1" },
         { "name": "DB_USER", "value": "root" },
         { "name": "DB_PASSWORD", "value": "admin123" },
         { "name": "DB_NAME", "value": "tienda_perritos" },

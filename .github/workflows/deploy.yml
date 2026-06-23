@@ -1,4 +1,4 @@
-# Este workflow se activa cuando se hace push a main
+# Flujo automatizado de Integración y Despliegue Continuo (CI/CD) para AWS ECS
 name: Deploy to ECS
 
 on:
@@ -13,7 +13,6 @@ env:
   ECS_CLUSTER: tienda-perritos-cluster
   ECS_SERVICE_FRONTEND: tienda-perritos-frontend-service
   ECS_SERVICE_BACKEND: tienda-perritos-backend-service
-  ECS_SERVICE_DB: tienda-perritos-db-service
 
 jobs:
   deploy:
@@ -29,11 +28,19 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build & push db image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          docker build -t $ECR_REGISTRY/${{ env.ECR_REPOSITORY_DB }}:latest -t $ECR_REGISTRY/${{ env.ECR_REPOSITORY_DB }}:${{ github.sha }} ./db
+          docker push $ECR_REGISTRY/${{ env.ECR_REPOSITORY_DB }} --all-tags
 
       - name: Build & push backend image
         env:
@@ -49,25 +56,14 @@ jobs:
           docker build -t $ECR_REGISTRY/${{ env.ECR_REPOSITORY_FRONTEND }}:latest -t $ECR_REGISTRY/${{ env.ECR_REPOSITORY_FRONTEND }}:${{ github.sha }} ./frontend
           docker push $ECR_REGISTRY/${{ env.ECR_REPOSITORY_FRONTEND }} --all-tags
 
-      - name: Build & push db image
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+      - name: Deploy to ECS (backend)
         run: |
-          docker build -t $ECR_REGISTRY/${{ env.ECR_REPOSITORY_DB }}:latest -t $ECR_REGISTRY/${{ env.ECR_REPOSITORY_DB }}:${{ github.sha }} ./db
-          docker push $ECR_REGISTRY/${{ env.ECR_REPOSITORY_DB }} --all-tags
+          aws ecs update-service --cluster ${{ env.ECS_CLUSTER }} --service ${{ env.ECS_SERVICE_BACKEND }} --force-new-deployment
 
       - name: Deploy to ECS (frontend)
         run: |
           aws ecs update-service --cluster ${{ env.ECS_CLUSTER }} --service ${{ env.ECS_SERVICE_FRONTEND }} --force-new-deployment
 
-      - name: Deploy to ECS (backend)
-        run: |
-          aws ecs update-service --cluster ${{ env.ECS_CLUSTER }} --service ${{ env.ECS_SERVICE_BACKEND }} --force-new-deployment
-
-      - name: Deploy to ECS (db)
-        run: |
-          aws ecs update-service --cluster ${{ env.ECS_CLUSTER }} --service ${{ env.ECS_SERVICE_DB }} --force-new-deployment
-
       - name: Wait for deployment
         run: |
-          aws ecs wait services-stable --cluster ${{ env.ECS_CLUSTER }} --services ${{ env.ECS_SERVICE_FRONTEND }} ${{ env.ECS_SERVICE_BACKEND }} ${{ env.ECS_SERVICE_DB }}
+          aws ecs wait services-stable --cluster ${{ env.ECS_CLUSTER }} --services ${{ env.ECS_SERVICE_FRONTEND }} ${{ env.ECS_SERVICE_BACKEND }}
