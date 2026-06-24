@@ -91,13 +91,15 @@ if (-not $tgFrontArn -or $tgFrontArn -eq "None" -or $tgFrontArn -eq "") {
     Write-Host "Target Group Frontend ya existe: $tgFrontArn" -ForegroundColor Yellow
 }
 
-# Target Group Backend
+# Target Group Backend (Configurando Health Check explícito a /api/health)
 $tgBackArn = (aws elbv2 describe-target-groups --query "TargetGroups[?TargetGroupName=='tienda-backend-tg'].TargetGroupArn" --output text 2>$null)
 if (-not $tgBackArn -or $tgBackArn -eq "None" -or $tgBackArn -eq "") {
-    $tgBackArn = (aws elbv2 create-target-group --name "tienda-backend-tg" --protocol HTTP --port 3001 --vpc-id $vpcId --target-type ip --query "TargetGroups[0].TargetGroupArn" --output text)
+    $tgBackArn = (aws elbv2 create-target-group --name "tienda-backend-tg" --protocol HTTP --port 3001 --vpc-id $vpcId --target-type ip --health-check-path "/api/health" --health-check-interval-seconds 15 --healthy-threshold-count 2 --unhealthy-threshold-count 3 --query "TargetGroups[0].TargetGroupArn" --output text)
     Write-Host "Target Group Backend creado: $tgBackArn"
 } else {
-    Write-Host "Target Group Backend ya existe: $tgBackArn" -ForegroundColor Yellow
+    # Actualizar health check si ya existe
+    aws elbv2 modify-target-group --target-group-arn $tgBackArn --health-check-path "/api/health" --health-check-interval-seconds 15 --healthy-threshold-count 2 --unhealthy-threshold-count 3 | Out-Null
+    Write-Host "Target Group Backend ya existe. Health Check actualizado: $tgBackArn" -ForegroundColor Yellow
 }
 
 # Load Balancer
