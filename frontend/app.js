@@ -3,11 +3,11 @@
  */
 
 // Determinar la URL base de la API según el host
-// frontend/app.js
-
-const API_BASE = "/api/productos";
-
-// Ejemplo: const API_BASE = "http://10.0.2.30:3001/api/productos";
+// Si es localhost o 127.0.0.1 (desarrollo local), apunta directamente al puerto 3001
+// En AWS (producción), usa la ruta relativa '/api/productos' enrutada por el ALB
+const API_BASE = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
+  ? "http://localhost:3001/api/productos"
+  : "/api/productos";
 
 
 let editandoId = null;
